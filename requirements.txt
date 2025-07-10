@@ -88,7 +88,7 @@ MarkupSafe==3.0.2
 matplotlib==3.10.3
 matplotlib-inline==0.1.7
 mdurl==0.1.2
-MetaTrader5==5.0.5120
+#MetaTrader5==5.0.5120
 mistune==3.1.3
 ml_dtypes==0.5.1
 multidict==6.6.3

@@ -6,29 +6,25 @@
   <title>Kcyee Bot</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <script>hljs.highlightAll();</script>
   <style>
     body {
-      background: linear-gradient(to bottom, #000000, #121212);
+      background-color: #000;
       color: #fff;
-      padding: 20px;
     }
     .card {
       background-color: #1e1e1e;
       border: none;
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 0 10px rgba(0, 255, 213, 0.2);
     }
     #chat-box {
       height: 400px;
       overflow-y: auto;
       background-color: #111;
-      padding: 15px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 8px;
       font-family: monospace;
       color: #eee;
     }
@@ -38,7 +34,7 @@
     pre {
       background-color: #2d2d2d;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: 5px;
       overflow-x: auto;
       position: relative;
     }
@@ -58,95 +54,61 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    .input-group input[type="text"] {
+    .input-group input {
       background-color: #222;
       color: #fff;
       border: 1px solid #444;
-      border-radius: 12px 0 0 12px;
-      padding: 10px 15px;
     }
     .input-group .btn {
-      background: linear-gradient(to right, #00ffd5, #007a7a);
-      color: #000;
-      font-weight: bold;
-      border-radius: 0 12px 12px 0;
-      transition: all 0.3s ease;
-    }
-    .input-group .btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 10px #00ffd5;
-    }
-    .form-control[type="file"] {
-      background-color: #222;
-      color: #aaa;
-      border-radius: 10px;
-      border: 1px solid #444;
-    }
-    .btn-success {
-      background: linear-gradient(to right, #28a745, #218838);
-      border-radius: 10px;
-      font-weight: bold;
-    }
-    .btn-success:hover {
-      box-shadow: 0 0 10px #28a745;
-    }
-    .spinner {
-      display: none;
-      margin: 20px auto;
-      border: 4px solid #444;
-      border-top: 4px solid #00ffd5;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      border: none;
     }
     h2 {
       color: #00ffc6;
-      text-shadow: 0 0 5px rgba(0, 255, 213, 0.5);
     }
   </style>
 </head>
 <body>
-  <div class="container mt-4">
-    <h2 class="text-center mb-4">Ask the EduTutor 🤖</h2>
+  <div class="container mt-5">
+    <h2 class="text-center">Ask the EduTutor 🤖</h2>
+
+    <div class="text-end mb-2">
+      <button class="btn btn-danger btn-sm" onclick="clearChat()">Clear Chat</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleScrollLock()" id="scrollToggle">Auto-scroll: On</button>
+    </div>
 
     <!-- Chat UI -->
-    <div class="card shadow mb-4">
+    <div class="card p-4 shadow">
       <div id="chat-box" class="mb-3"></div>
       <div class="input-group">
         <input type="text" id="user-input" class="form-control" placeholder="Ask a question..." />
-        <button class="btn" onclick="sendMessage()">
-          <i class="fas fa-paper-plane me-2"></i>Send
-        </button>
+        <button class="btn btn-outline-light" onclick="startListening()" title="Speak"><i class="fas fa-microphone"></i></button>
+        <button class="btn btn-primary" onclick="sendMessage()"><i class="fas fa-paper-plane me-1"></i>Send</button>
       </div>
     </div>
 
     <!-- Upload UI -->
-    <div class="card shadow mb-4">
+    <div class="card p-4 shadow mt-4">
       <h5 class="mb-3">Upload a document for analysis 📄</h5>
       <form id="upload-form" enctype="multipart/form-data">
         <div class="input-group mb-3">
           <input type="file" name="document" class="form-control" accept=".pdf,.docx,.txt" required />
-          <button type="submit" class="btn btn-success">
-            <i class="fas fa-upload me-2"></i>Upload & Analyze
-          </button>
+          <button type="submit" class="btn btn-success">Upload & Analyze</button>
         </div>
       </form>
       <div id="upload-response" class="bot-msg mt-2"></div>
     </div>
-
-    <!-- Loading Spinner -->
-    <div class="spinner" id="spinner"></div>
   </div>
 
   <script>
     const input = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
-    const spinner = document.getElementById('spinner');
+    const scrollToggleBtn = document.getElementById('scrollToggle');
+    let autoScroll = true;
+
+    window.onload = () => {
+      const history = localStorage.getItem('kcyee_chat');
+      if (history) chatBox.innerHTML = history;
+    }
 
     input.addEventListener("keypress", function(e) {
       if (e.key === "Enter") {
@@ -156,18 +118,14 @@
     });
 
     function escapeHtml(text) {
-      return text.replace(/[&<>"']/g, function (char) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char];
-      });
+      return text.replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
     }
 
     function formatResponse(text) {
-      return text
-        .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-          const escaped = escapeHtml(code);
-          return `<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code class="language-${lang || 'plaintext'}">${escaped}</code></pre>`;
-        })
-        .replace(/\n/g, "<br>");
+      return text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+        const escaped = escapeHtml(code);
+        return `<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code class="language-${lang || 'plaintext'}">${escaped}</code></pre>`;
+      }).replace(/\n/g, "<br>");
     }
 
     function copyCode(button) {
@@ -184,9 +142,9 @@
 
       chatBox.innerHTML += `<div class="user-msg"><strong>You:</strong> ${escapeHtml(message)}</div>`;
       chatBox.innerHTML += `<div id="typing" class="typing">Bot is typing<span class="dot">...</span></div>`;
-      chatBox.scrollTop = chatBox.scrollHeight;
+      scrollChat();
       input.value = '';
-      spinner.style.display = 'block';
+      saveChat();
 
       try {
         const response = await fetch('/chat', {
@@ -197,12 +155,11 @@
 
         const data = await response.json();
         document.getElementById('typing').remove();
+        speakText(data.response);
         typeHtmlWithEffect(formatResponse(data.response));
       } catch (err) {
         document.getElementById('typing').remove();
-        chatBox.innerHTML += `<div class="bot-msg"><strong>Bot:</strong> ❌ Error: ${err.message}</div>`;
-      } finally {
-        spinner.style.display = 'none';
+        chatBox.innerHTML += `<div class="bot-msg">❌ Error: ${err.message}</div>`;
       }
     }
 
@@ -214,23 +171,71 @@
       let i = 0;
       const interval = setInterval(() => {
         container.innerHTML = htmlText.slice(0, i);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        scrollChat();
         i++;
         if (i > htmlText.length) {
           clearInterval(interval);
           container.innerHTML = htmlText;
           hljs.highlightAll();
+          saveChat();
         }
       }, speed);
     }
 
+    function saveChat() {
+      localStorage.setItem('kcyee_chat', chatBox.innerHTML);
+    }
+
+    function clearChat() {
+      chatBox.innerHTML = '';
+      localStorage.removeItem('kcyee_chat');
+    }
+
+    function toggleScrollLock() {
+      autoScroll = !autoScroll;
+      scrollToggleBtn.textContent = `Auto-scroll: ${autoScroll ? 'On' : 'Off'}`;
+    }
+
+    function scrollChat() {
+      if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Speech Recognition
+    const recognition = window.SpeechRecognition || window.webkitSpeechRecognition ? new (window.SpeechRecognition || window.webkitSpeechRecognition)() : null;
+
+    function startListening() {
+      if (!recognition) return alert("Speech recognition not supported in this browser.");
+
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+      recognition.onresult = (event) => {
+        input.value = event.results[0][0].transcript;
+      };
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+      };
+    }
+
+    // Voice Response
+    function speakText(text) {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'en-US';
+      synth.cancel();
+      synth.speak(utter);
+    }
+
+    // File upload
     document.getElementById("upload-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       const formData = new FormData(this);
       const responseBox = document.getElementById("upload-response");
-
       responseBox.innerHTML = "Analyzing document...";
-      spinner.style.display = 'block';
 
       try {
         const res = await fetch("/upload", {
@@ -240,10 +245,9 @@
         const data = await res.json();
         responseBox.innerHTML = formatResponse(data.response);
         hljs.highlightAll();
+        speakText(data.response);
       } catch (err) {
         responseBox.innerHTML = `❌ Error analyzing file: ${err.message}`;
-      } finally {
-        spinner.style.display = 'none';
       }
     });
   </script>
